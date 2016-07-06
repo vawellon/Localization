@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information. 
 
 using System;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
@@ -13,8 +12,8 @@ using Microsoft.Extensions.Localization.Internal;
 namespace Microsoft.Extensions.Localization
 {
     /// <summary>
-    /// An <see cref="IStringLocalizer"/> that uses the <see cref="System.Resources.ResourceManager"/> and
-    /// <see cref="System.Resources.ResourceReader"/> to provide localized strings.
+    /// An <see cref="IStringLocalizer"/> that uses the <see cref="ResourceManager"/> and
+    /// <see cref="ResourceReader"/> to provide localized strings.
     /// </summary>
     /// <remarks>This type is thread-safe.</remarks>
     public class ResourceManagerStringLocalizer : IStringLocalizer
@@ -22,13 +21,13 @@ namespace Microsoft.Extensions.Localization
         private readonly ConcurrentDictionary<string, object> _missingManifestCache = new ConcurrentDictionary<string, object>();
         private readonly IResourceNamesCache _resourceNamesCache;
         private readonly ResourceManager _resourceManager;
-        private readonly IResourceStreamManager _resourceStreamManager;
+        private readonly IResourceStringManager _resourceStringManager;
         private readonly string _resourceBaseName;
 
         /// <summary>
         /// Creates a new <see cref="ResourceManagerStringLocalizer"/>.
         /// </summary>
-        /// <param name="resourceManager">The <see cref="System.Resources.ResourceManager"/> to read strings from.</param>
+        /// <param name="resourceManager">The <see cref="ResourceManager"/> to read strings from.</param>
         /// <param name="resourceAssembly">The <see cref="Assembly"/> that contains the strings as embedded resources.</param>
         /// <param name="baseName">The base name of the embedded resource that contains the strings.</param>
         /// <param name="resourceNamesCache">Cache of the list of strings for a given resource assembly name.</param>
@@ -39,7 +38,10 @@ namespace Microsoft.Extensions.Localization
             IResourceNamesCache resourceNamesCache)
             : this(
                   resourceManager,
-                  new AssemblyResourceStreamManager(new AssemblyWrapper(resourceAssembly), baseName),
+                  new AssemblyResourceStringManager(
+                      resourceNamesCache,
+                      new AssemblyWrapper(resourceAssembly),
+                      baseName),
                   baseName,
                   resourceNamesCache)
         {
@@ -54,7 +56,7 @@ namespace Microsoft.Extensions.Localization
         /// </summary>
         public ResourceManagerStringLocalizer(
             ResourceManager resourceManager,
-            IResourceStreamManager resourceStreamManager,
+            IResourceStringManager resourceStreamManager,
             string baseName,
             IResourceNamesCache resourceNamesCache)
         {
@@ -78,7 +80,7 @@ namespace Microsoft.Extensions.Localization
                 throw new ArgumentNullException(nameof(resourceNamesCache));
             }
 
-            _resourceStreamManager = resourceStreamManager;
+            _resourceStringManager = resourceStreamManager;
             _resourceManager = resourceManager;
             _resourceBaseName = baseName;
             _resourceNamesCache = resourceNamesCache;
@@ -125,12 +127,12 @@ namespace Microsoft.Extensions.Localization
             return culture == null
                 ? new ResourceManagerStringLocalizer(
                     _resourceManager,
-                    _resourceStreamManager,
+                    _resourceStringManager,
                     _resourceBaseName,
                     _resourceNamesCache)
                 : new ResourceManagerWithCultureStringLocalizer(
                     _resourceManager,
-                    _resourceStreamManager,
+                    _resourceStringManager,
                     _resourceBaseName,
                     _resourceNamesCache,
                     culture);
@@ -159,7 +161,7 @@ namespace Microsoft.Extensions.Localization
 
             if (resourceNames == null && !includeParentCultures)
             {
-                var resourceStreamName = _resourceStreamManager.GetResourceStreamName(culture);
+                var resourceStreamName = _resourceStringManager.GetResourceName(culture);
                 throw new MissingManifestResourceException(
                     Resources.FormatLocalization_MissingManifest(resourceStreamName));
             }
@@ -243,28 +245,7 @@ namespace Microsoft.Extensions.Localization
 
         private IList<string> GetResourceNamesForCulture(CultureInfo culture)
         {
-            var cacheKey = _resourceStreamManager.GetResourceStreamCacheKey(culture);
-            return _resourceNamesCache.GetOrAdd(cacheKey, _ =>
-            {
-                using (var resourceStream = _resourceStreamManager.GetResourceStream(culture))
-                {
-                    if (resourceStream == null)
-                    {
-                        return null;
-                    }
-
-                    using (var resources = new ResourceReader(resourceStream))
-                    {
-                        var names = new List<string>();
-                        foreach (DictionaryEntry entry in resources)
-                        {
-                            var resourceName = (string)entry.Key;
-                            names.Add(resourceName);
-                        }
-                        return names;
-                    }
-                }
-            });
+            return _resourceStringManager.GetAllResourceStrings(culture);
         }
     }
 }

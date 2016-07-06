@@ -12,7 +12,7 @@ namespace Microsoft.Extensions.Localization
 {
     /// <summary>
     /// An <see cref="IStringLocalizer"/> that uses the <see cref="ResourceManager"/> and
-    /// <see cref="System.Resources.ResourceReader"/> to provide localized strings for a specific <see cref="CultureInfo"/>.
+    /// <see cref="ResourceReader"/> to provide localized strings for a specific <see cref="CultureInfo"/>.
     /// </summary>
     public class ResourceManagerWithCultureStringLocalizer : ResourceManagerStringLocalizer
     {
@@ -21,14 +21,14 @@ namespace Microsoft.Extensions.Localization
         /// <summary>
         /// Creates a new <see cref="ResourceManagerWithCultureStringLocalizer"/>.
         /// </summary>
-        /// <param name="resourceManager">The <see cref="System.Resources.ResourceManager"/> to read strings from.</param>
-        /// <param name="resourceStreamManager">The <see cref="IResourceStreamManager"/> that can find the resources.</param>
+        /// <param name="resourceManager">The <see cref="ResourceManager"/> to read strings from.</param>
+        /// <param name="resourceStreamManager">The <see cref="IResourceStringManager"/> that can find the resources.</param>
         /// <param name="baseName">The base name of the embedded resource that contains the strings.</param>
         /// <param name="resourceNamesCache">Cache of the list of strings for a given resource assembly name.</param>
         /// <param name="culture">The specific <see cref="CultureInfo"/> to use.</param>
         public ResourceManagerWithCultureStringLocalizer(
             ResourceManager resourceManager,
-            IResourceStreamManager resourceStreamManager,
+            IResourceStringManager resourceStreamManager,
             string baseName,
             IResourceNamesCache resourceNamesCache,
             CultureInfo culture)
@@ -65,7 +65,7 @@ namespace Microsoft.Extensions.Localization
         /// <summary>
         /// Creates a new <see cref="ResourceManagerWithCultureStringLocalizer"/>.
         /// </summary>
-        /// <param name="resourceManager">The <see cref="System.Resources.ResourceManager"/> to read strings from.</param>
+        /// <param name="resourceManager">The <see cref="ResourceManager"/> to read strings from.</param>
         /// <param name="resourceAssembly">The <see cref="Assembly"/> that contains the strings as embedded resources.</param>
         /// <param name="baseName">The base name of the embedded resource that contains the strings.</param>
         /// <param name="resourceNamesCache">Cache of the list of strings for a given resource assembly name.</param>

@@ -1,12 +1,15 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Resources;
 using System.Text;
 
 namespace Microsoft.Extensions.Localization.Internal
 {
-    public class AssemblyResourceStreamManager : IResourceStreamManager
+    public class AssemblyResourceStringManager : IResourceStringManager
     {
         private const string _assemblyElementDelimiter = ", ";
         private static readonly string[] _assemblyElementDelimiterArray = new[] { _assemblyElementDelimiter };
@@ -14,15 +17,18 @@ namespace Microsoft.Extensions.Localization.Internal
 
         private AssemblyWrapper _assembly;
         private readonly string _resourceBaseName;
+        private readonly IResourceNamesCache _resourceNamesCache;
 
-        public AssemblyResourceStreamManager(
+        public AssemblyResourceStringManager(
+            IResourceNamesCache resourceCache,
             AssemblyWrapper resourceAssembly,
             string resourceBaseName)
         {
+            _resourceNamesCache = resourceCache;
             _assembly = resourceAssembly;
             _resourceBaseName = resourceBaseName;
         }
-        public string GetResourceStreamName(CultureInfo culture)
+        public string GetResourceName(CultureInfo culture)
         {
             var resourceStreamName = _resourceBaseName;
             if (!string.IsNullOrEmpty(culture.Name))
@@ -34,14 +40,15 @@ namespace Microsoft.Extensions.Localization.Internal
             return resourceStreamName;
         }
 
-        public string GetResourceStreamCacheKey(CultureInfo culture)
+        public string GetResourceCacheKey(CultureInfo culture)
         {
-            var resourceStreamName = GetResourceStreamName(culture);
+            var resourceStreamName = GetResourceName(culture);
             var assemblyName = ApplyCultureToAssembly(culture);
+
             return $"Assembly={assemblyName};resourceStreamName={resourceStreamName}";
         }
 
-        public Stream GetResourceStream(CultureInfo culture)
+        public IList<string> GetAllResourceStrings(CultureInfo culture)
         {
             var assembly = GetAssembly(culture);
 
@@ -50,8 +57,30 @@ namespace Microsoft.Extensions.Localization.Internal
                 return null;
             }
 
-            var resourceStreamName = GetResourceStreamName(culture);
-            return assembly.GetManifestResourceStream(resourceStreamName);
+            var cacheKey = GetResourceCacheKey(culture);
+
+            return _resourceNamesCache.GetOrAdd(cacheKey, _ =>
+            {
+                var resourceStreamName = GetResourceName(culture);
+                using (var resourceStream = assembly.GetManifestResourceStream(resourceStreamName))
+                {
+                    if (resourceStream == null)
+                    {
+                        return null;
+                    }
+
+                    using (var resources = new ResourceReader(resourceStream))
+                    {
+                        var names = new List<string>();
+                        foreach (DictionaryEntry entry in resources)
+                        {
+                            var resourceName = (string)entry.Key;
+                            names.Add(resourceName);
+                        }
+                        return names;
+                    }
+                }
+            });
         }
 
         protected virtual AssemblyWrapper GetAssembly(CultureInfo culture)
@@ -87,8 +116,8 @@ namespace Microsoft.Extensions.Localization.Internal
             {
                 var cultureEndIndex = _assembly.FullName.IndexOf(_assemblyElementDelimiter, cultureStartIndex);
                 var cultureLength = cultureEndIndex - cultureStartIndex;
-                builder = builder.Remove(cultureStartIndex, cultureLength);
-                builder = builder.Insert(cultureStartIndex, cultureString);
+                builder.Remove(cultureStartIndex, cultureLength);
+                builder.Insert(cultureStartIndex, cultureString);
             }
 
             var firstSplit = _assembly.FullName.IndexOf(_assemblyElementDelimiter);
@@ -97,7 +126,7 @@ namespace Microsoft.Extensions.Localization.Internal
                 //Index of end of Assembly name
                 firstSplit = _assembly.FullName.Length;
             }
-            builder = builder.Insert(firstSplit, ".resources");
+            builder.Insert(firstSplit, ".resources");
 
             return builder.ToString();
         }
