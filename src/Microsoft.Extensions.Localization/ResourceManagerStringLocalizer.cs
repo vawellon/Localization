@@ -6,8 +6,6 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Resources;
 using Microsoft.Extensions.Localization.Internal;
@@ -24,7 +22,7 @@ namespace Microsoft.Extensions.Localization
         private readonly ConcurrentDictionary<string, object> _missingManifestCache = new ConcurrentDictionary<string, object>();
         private readonly IResourceNamesCache _resourceNamesCache;
         private readonly ResourceManager _resourceManager;
-        private readonly AssemblyWrapper _resourceAssemblyWrapper;
+        private readonly IResourceStreamManager _resourceStreamManager;
         private readonly string _resourceBaseName;
 
         /// <summary>
@@ -39,7 +37,11 @@ namespace Microsoft.Extensions.Localization
             Assembly resourceAssembly,
             string baseName,
             IResourceNamesCache resourceNamesCache)
-            : this(resourceManager, new AssemblyWrapper(resourceAssembly), baseName, resourceNamesCache)
+            : this(
+                  resourceManager,
+                  new AssemblyResourceStreamManager(resourceAssembly, baseName),
+                  baseName,
+                  resourceNamesCache)
         {
             if (resourceAssembly == null)
             {
@@ -52,7 +54,7 @@ namespace Microsoft.Extensions.Localization
         /// </summary>
         public ResourceManagerStringLocalizer(
             ResourceManager resourceManager,
-            AssemblyWrapper resourceAssemblyWrapper,
+            IResourceStreamManager resourceStreamManager,
             string baseName,
             IResourceNamesCache resourceNamesCache)
         {
@@ -61,9 +63,9 @@ namespace Microsoft.Extensions.Localization
                 throw new ArgumentNullException(nameof(resourceManager));
             }
 
-            if (resourceAssemblyWrapper == null)
+            if (resourceStreamManager == null)
             {
-                throw new ArgumentNullException(nameof(resourceAssemblyWrapper));
+                throw new ArgumentNullException(nameof(resourceStreamManager));
             }
 
             if (baseName == null)
@@ -76,7 +78,7 @@ namespace Microsoft.Extensions.Localization
                 throw new ArgumentNullException(nameof(resourceNamesCache));
             }
 
-            _resourceAssemblyWrapper = resourceAssemblyWrapper;
+            _resourceStreamManager = resourceStreamManager;
             _resourceManager = resourceManager;
             _resourceBaseName = baseName;
             _resourceNamesCache = resourceNamesCache;
@@ -123,12 +125,12 @@ namespace Microsoft.Extensions.Localization
             return culture == null
                 ? new ResourceManagerStringLocalizer(
                     _resourceManager,
-                    _resourceAssemblyWrapper.Assembly,
+                    _resourceStreamManager,
                     _resourceBaseName,
                     _resourceNamesCache)
                 : new ResourceManagerWithCultureStringLocalizer(
                     _resourceManager,
-                    _resourceAssemblyWrapper.Assembly,
+                    _resourceStreamManager,
                     _resourceBaseName,
                     _resourceNamesCache,
                     culture);
@@ -157,7 +159,7 @@ namespace Microsoft.Extensions.Localization
 
             if (resourceNames == null && !includeParentCultures)
             {
-                var resourceStreamName = GetResourceStreamName(culture);
+                var resourceStreamName = _resourceStreamManager.GetResourceStreamName(culture);
                 throw new MissingManifestResourceException(
                     Resources.FormatLocalization_MissingManifest(resourceStreamName));
             }
@@ -239,73 +241,19 @@ namespace Microsoft.Extensions.Localization
             return resourceNames;
         }
 
-        private string GetResourceStreamName(CultureInfo culture)
-        {
-            var resourceStreamName = _resourceBaseName;
-            if (!string.IsNullOrEmpty(culture.Name))
-            {
-                resourceStreamName += "." + culture.Name;
-            }
-            resourceStreamName += ".resources";
-
-            return resourceStreamName;
-        }
-
-        private const string AssemblyElementDelimiter = ", ";
-
-        private string ApplyCultureToAssembly(string assemblyFullName, CultureInfo culture)
-        {
-            var assemblyNameElements = assemblyFullName
-                .Split(new string[] { AssemblyElementDelimiter }, StringSplitOptions.RemoveEmptyEntries);
-            IDictionary<string, string> dict = new Dictionary<string, string>();
-
-            foreach (var assemblyNameElement in assemblyNameElements)
-            {
-                var parts = assemblyNameElement.Split(new char[] { '=' });
-
-                if (parts.Count() == 1)
-                {
-                    parts[0] = parts[0] + ".resources";
-                }
-
-                dict.Add(parts[0], parts.Count() == 2 ? parts[1] : null);
-            }
-
-            // Overwrite any existing culture
-            dict["Culture"] = culture.Name == string.Empty ? "neutral" : culture.Name;
-
-            var elements = dict.Select(kvp => kvp.Value == null ? kvp.Key : $"{kvp.Key}={kvp.Value}");
-
-            return string.Join(AssemblyElementDelimiter, elements);
-        }
-
         private IList<string> GetResourceNamesForCulture(CultureInfo culture)
         {
-            var assemblyName = ApplyCultureToAssembly(_resourceAssemblyWrapper.FullName, culture);
-
-            Assembly assembly;
-            try
-            {
-                assembly = Assembly.Load(new AssemblyName(assemblyName));
-            }
-            catch (FileNotFoundException)
-            {
-                return null;
-            }
-
-            var resourceStreamName = GetResourceStreamName(culture);
-            var cacheKey = $"assembly={_resourceAssemblyWrapper.FullName};resourceStreamName={resourceStreamName}";
-
+            var cacheKey = _resourceStreamManager.GetResourceStreamCacheKey(culture);
             return _resourceNamesCache.GetOrAdd(cacheKey, _ =>
             {
-                using (var cultureResourceStream = assembly.GetManifestResourceStream(resourceStreamName))
+                using (var resourceStream = _resourceStreamManager.GetResourceStream(culture))
                 {
-                    if (cultureResourceStream == null)
+                    if (resourceStream == null)
                     {
                         return null;
                     }
 
-                    using (var resources = new ResourceReader(cultureResourceStream))
+                    using (var resources = new ResourceReader(resourceStream))
                     {
                         var names = new List<string>();
                         foreach (DictionaryEntry entry in resources)
