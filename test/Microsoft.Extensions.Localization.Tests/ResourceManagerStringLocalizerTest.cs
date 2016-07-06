@@ -114,10 +114,9 @@ namespace Microsoft.Extensions.Localization.Tests
             var baseName = "testington";
             var resourceAssembly = new TestAssemblyWrapper("Assembly1");
             var resourceManager = new TestResourceManager(baseName, resourceAssembly.Assembly);
-            var resourceStreamManager = new TestResourceStreamManager(resourceAssembly.Assembly, baseName);
             var localizer = new ResourceManagerWithCultureStringLocalizer(
                 resourceManager,
-                resourceStreamManager,
+                resourceAssembly.Assembly,
                 baseName,
                 resourceNamesCache,
                 CultureInfo.CurrentCulture);
@@ -169,7 +168,6 @@ namespace Microsoft.Extensions.Localization.Tests
             public TestResourceManager(string baseName, Assembly assembly)
                 : base(baseName, assembly)
             {
-
             }
 
             public override string GetString(string name, CultureInfo culture) => null;
@@ -182,7 +180,7 @@ namespace Microsoft.Extensions.Localization.Tests
             public TestResourceStreamManager(
                     TestAssemblyWrapper assemblyWrapper,
                     string resourceBaseName)
-                : base(assemblyWrapper.Assembly, resourceBaseName)
+                : base(assemblyWrapper, resourceBaseName)
             {
                 _assemblyWrapper = assemblyWrapper;
             }

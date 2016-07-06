@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Microsoft.Extensions.Localization.Internal
 {
@@ -15,11 +12,11 @@ namespace Microsoft.Extensions.Localization.Internal
         private static readonly string[] _assemblyElementDelimiterArray = new[] { _assemblyElementDelimiter };
         private static readonly char[] _assemblyEqualDelimiter = new[] { '=' };
 
-        private Assembly _assembly;
+        private AssemblyWrapper _assembly;
         private readonly string _resourceBaseName;
 
         public AssemblyResourceStreamManager(
-            Assembly resourceAssembly,
+            AssemblyWrapper resourceAssembly,
             string resourceBaseName)
         {
             _assembly = resourceAssembly;
@@ -47,6 +44,12 @@ namespace Microsoft.Extensions.Localization.Internal
         public Stream GetResourceStream(CultureInfo culture)
         {
             var assembly = GetAssembly(culture);
+
+            if (assembly == null)
+            {
+                return null;
+            }
+
             var resourceStreamName = GetResourceStreamName(culture);
             return assembly.GetManifestResourceStream(resourceStreamName);
         }

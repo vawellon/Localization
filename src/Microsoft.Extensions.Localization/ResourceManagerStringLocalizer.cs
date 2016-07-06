@@ -30,7 +30,7 @@ namespace Microsoft.Extensions.Localization
         /// </summary>
         /// <param name="resourceManager">The <see cref="System.Resources.ResourceManager"/> to read strings from.</param>
         /// <param name="resourceAssembly">The <see cref="Assembly"/> that contains the strings as embedded resources.</param>
-        /// <param name="baseName">The base name of the embedded resource in the <see cref="Assembly"/> that contains the strings.</param>
+        /// <param name="baseName">The base name of the embedded resource that contains the strings.</param>
         /// <param name="resourceNamesCache">Cache of the list of strings for a given resource assembly name.</param>
         public ResourceManagerStringLocalizer(
             ResourceManager resourceManager,
@@ -39,7 +39,7 @@ namespace Microsoft.Extensions.Localization
             IResourceNamesCache resourceNamesCache)
             : this(
                   resourceManager,
-                  new AssemblyResourceStreamManager(resourceAssembly, baseName),
+                  new AssemblyResourceStreamManager(new AssemblyWrapper(resourceAssembly), baseName),
                   baseName,
                   resourceNamesCache)
         {
