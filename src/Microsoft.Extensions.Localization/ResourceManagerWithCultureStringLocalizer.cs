@@ -22,26 +22,26 @@ namespace Microsoft.Extensions.Localization
         /// Creates a new <see cref="ResourceManagerWithCultureStringLocalizer"/>.
         /// </summary>
         /// <param name="resourceManager">The <see cref="ResourceManager"/> to read strings from.</param>
-        /// <param name="resourceStreamManager">The <see cref="IResourceStringManager"/> that can find the resources.</param>
+        /// <param name="resourceStringProvider">The <see cref="IResourceStringProvider"/> that can find the resources.</param>
         /// <param name="baseName">The base name of the embedded resource that contains the strings.</param>
         /// <param name="resourceNamesCache">Cache of the list of strings for a given resource assembly name.</param>
         /// <param name="culture">The specific <see cref="CultureInfo"/> to use.</param>
         public ResourceManagerWithCultureStringLocalizer(
             ResourceManager resourceManager,
-            IResourceStringManager resourceStreamManager,
+            IResourceStringProvider resourceStringProvider,
             string baseName,
             IResourceNamesCache resourceNamesCache,
             CultureInfo culture)
-            : base(resourceManager, resourceStreamManager, baseName, resourceNamesCache)
+            : base(resourceManager, resourceStringProvider, baseName, resourceNamesCache)
         {
             if (resourceManager == null)
             {
                 throw new ArgumentNullException(nameof(resourceManager));
             }
 
-            if (resourceStreamManager == null)
+            if (resourceStringProvider == null)
             {
-                throw new ArgumentNullException(nameof(resourceStreamManager));
+                throw new ArgumentNullException(nameof(resourceStringProvider));
             }
 
             if (baseName == null)

@@ -1,13 +1,13 @@
-﻿using System.Collections.Generic;
+﻿// Copyright (c) .NET Foundation. All rights reserved. 
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information. 
+
+using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 
 namespace Microsoft.Extensions.Localization.Internal
 {
-    public interface IResourceStringManager
+    public interface IResourceStringProvider
     {
-        string GetResourceName(CultureInfo culture);
-
-        IList<string> GetAllResourceStrings(CultureInfo culture);
+        IList<string> GetAllResourceStrings(CultureInfo culture, bool throwOnMissing);
     }
 }

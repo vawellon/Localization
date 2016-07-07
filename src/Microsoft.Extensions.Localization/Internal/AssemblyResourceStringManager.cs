@@ -1,4 +1,7 @@
-﻿using System;
+﻿// Copyright (c) .NET Foundation. All rights reserved. 
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information. 
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
@@ -9,7 +12,7 @@ using System.Text;
 
 namespace Microsoft.Extensions.Localization.Internal
 {
-    public class AssemblyResourceStringManager : IResourceStringManager
+    public class AssemblyResourceStringProvider : IResourceStringProvider
     {
         private const string _assemblyElementDelimiter = ", ";
         private static readonly string[] _assemblyElementDelimiterArray = new[] { _assemblyElementDelimiter };
@@ -19,7 +22,7 @@ namespace Microsoft.Extensions.Localization.Internal
         private readonly string _resourceBaseName;
         private readonly IResourceNamesCache _resourceNamesCache;
 
-        public AssemblyResourceStringManager(
+        public AssemblyResourceStringProvider(
             IResourceNamesCache resourceCache,
             AssemblyWrapper resourceAssembly,
             string resourceBaseName)
@@ -28,7 +31,15 @@ namespace Microsoft.Extensions.Localization.Internal
             _assembly = resourceAssembly;
             _resourceBaseName = resourceBaseName;
         }
-        public string GetResourceName(CultureInfo culture)
+
+        private string GetResourceCacheKey(CultureInfo culture)
+        {
+            var assemblyName = ApplyCultureToAssembly(culture);
+
+            return $"Assembly={assemblyName};resourceName={_resourceBaseName}";
+        }
+
+        private string GetResourceName(CultureInfo culture)
         {
             var resourceStreamName = _resourceBaseName;
             if (!string.IsNullOrEmpty(culture.Name))
@@ -40,25 +51,28 @@ namespace Microsoft.Extensions.Localization.Internal
             return resourceStreamName;
         }
 
-        public string GetResourceCacheKey(CultureInfo culture)
+        private IList<string> ThrowOrNull(CultureInfo culture, bool throwOnMissing)
         {
-            var resourceStreamName = GetResourceName(culture);
-            var assemblyName = ApplyCultureToAssembly(culture);
-
-            return $"Assembly={assemblyName};resourceStreamName={resourceStreamName}";
-        }
-
-        public IList<string> GetAllResourceStrings(CultureInfo culture)
-        {
-            var assembly = GetAssembly(culture);
-
-            if (assembly == null)
+            if (throwOnMissing)
+            {
+                throw new MissingManifestResourceException(
+                    Resources.FormatLocalization_MissingManifest(GetResourceName(culture)));
+            }
+            else
             {
                 return null;
             }
+        }
+
+        public IList<string> GetAllResourceStrings(CultureInfo culture, bool throwOnMissing)
+        {
+            var assembly = GetAssembly(culture);
+            if (assembly == null)
+            {
+                return ThrowOrNull(culture, throwOnMissing);
+            }
 
             var cacheKey = GetResourceCacheKey(culture);
-
             return _resourceNamesCache.GetOrAdd(cacheKey, _ =>
             {
                 var resourceStreamName = GetResourceName(culture);
@@ -66,7 +80,7 @@ namespace Microsoft.Extensions.Localization.Internal
                 {
                     if (resourceStream == null)
                     {
-                        return null;
+                        return ThrowOrNull(culture, throwOnMissing);
                     }
 
                     using (var resources = new ResourceReader(resourceStream))

@@ -21,7 +21,7 @@ namespace Microsoft.Extensions.Localization
         private readonly ConcurrentDictionary<string, object> _missingManifestCache = new ConcurrentDictionary<string, object>();
         private readonly IResourceNamesCache _resourceNamesCache;
         private readonly ResourceManager _resourceManager;
-        private readonly IResourceStringManager _resourceStringManager;
+        private readonly IResourceStringProvider _resourceStringProvider;
         private readonly string _resourceBaseName;
 
         /// <summary>
@@ -38,7 +38,7 @@ namespace Microsoft.Extensions.Localization
             IResourceNamesCache resourceNamesCache)
             : this(
                   resourceManager,
-                  new AssemblyResourceStringManager(
+                  new AssemblyResourceStringProvider(
                       resourceNamesCache,
                       new AssemblyWrapper(resourceAssembly),
                       baseName),
@@ -56,7 +56,7 @@ namespace Microsoft.Extensions.Localization
         /// </summary>
         public ResourceManagerStringLocalizer(
             ResourceManager resourceManager,
-            IResourceStringManager resourceStreamManager,
+            IResourceStringProvider resourceStringProvider,
             string baseName,
             IResourceNamesCache resourceNamesCache)
         {
@@ -80,7 +80,7 @@ namespace Microsoft.Extensions.Localization
                 throw new ArgumentNullException(nameof(resourceNamesCache));
             }
 
-            _resourceStringManager = resourceStreamManager;
+            _resourceStringProvider = resourceStreamManager;
             _resourceManager = resourceManager;
             _resourceBaseName = baseName;
             _resourceNamesCache = resourceNamesCache;
@@ -127,12 +127,12 @@ namespace Microsoft.Extensions.Localization
             return culture == null
                 ? new ResourceManagerStringLocalizer(
                     _resourceManager,
-                    _resourceStringManager,
+                    _resourceStringProvider,
                     _resourceBaseName,
                     _resourceNamesCache)
                 : new ResourceManagerWithCultureStringLocalizer(
                     _resourceManager,
-                    _resourceStringManager,
+                    _resourceStringProvider,
                     _resourceBaseName,
                     _resourceNamesCache,
                     culture);
@@ -157,14 +157,7 @@ namespace Microsoft.Extensions.Localization
 
             var resourceNames = includeParentCultures
                 ? GetResourceNamesFromCultureHierarchy(culture)
-                : GetResourceNamesForCulture(culture);
-
-            if (resourceNames == null && !includeParentCultures)
-            {
-                var resourceStreamName = _resourceStringManager.GetResourceName(culture);
-                throw new MissingManifestResourceException(
-                    Resources.FormatLocalization_MissingManifest(resourceStreamName));
-            }
+                : GetResourceNamesForCulture(culture, true);
 
             foreach (var name in resourceNames)
             {
@@ -215,7 +208,7 @@ namespace Microsoft.Extensions.Localization
             while (true)
             {
 
-                var cultureResourceNames = GetResourceNamesForCulture(currentCulture);
+                var cultureResourceNames = GetResourceNamesForCulture(currentCulture, false);
 
                 if (cultureResourceNames != null)
                 {
@@ -243,9 +236,9 @@ namespace Microsoft.Extensions.Localization
             return resourceNames;
         }
 
-        private IList<string> GetResourceNamesForCulture(CultureInfo culture)
+        private IList<string> GetResourceNamesForCulture(CultureInfo culture, bool throwOnMissing)
         {
-            return _resourceStringManager.GetAllResourceStrings(culture);
+            return _resourceStringProvider.GetAllResourceStrings(culture, throwOnMissing);
         }
     }
 }
