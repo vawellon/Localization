@@ -65,9 +65,9 @@ namespace Microsoft.Extensions.Localization
                 throw new ArgumentNullException(nameof(resourceManager));
             }
 
-            if (resourceStreamManager == null)
+            if (resourceStringProvider == null)
             {
-                throw new ArgumentNullException(nameof(resourceStreamManager));
+                throw new ArgumentNullException(nameof(resourceStringProvider));
             }
 
             if (baseName == null)
@@ -80,7 +80,7 @@ namespace Microsoft.Extensions.Localization
                 throw new ArgumentNullException(nameof(resourceNamesCache));
             }
 
-            _resourceStringProvider = resourceStreamManager;
+            _resourceStringProvider = resourceStringProvider;
             _resourceManager = resourceManager;
             _resourceBaseName = baseName;
             _resourceNamesCache = resourceNamesCache;
